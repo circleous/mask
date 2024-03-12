@@ -18,9 +18,9 @@ var setCmd = &cobra.Command{
 		if len(newChar) != 1 {
 			fmt.Println("Consider using a single replacement char. Otherwise formatted outputs could be messed up")
 		}
-		m := mask.LoadMasks()
+		m := mask.LoadMasks(cfgFile)
 		m.MaskChar = newChar
-		m.Save()
+		m.Save(cfgFile)
 	},
 }
 

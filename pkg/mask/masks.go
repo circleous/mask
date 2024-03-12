@@ -3,15 +3,14 @@ package mask
 import (
 	"fmt"
 	"os"
-	"path"
+	"regexp"
 	"strings"
 
-	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
 )
 
 const (
-	DefaultMaskChar = "*"
+	DefaultMask = "*****"
 )
 
 type Masks struct {
@@ -34,39 +33,41 @@ func (m *Masks) contains(r string) bool {
 	return false
 }
 
-func LoadMasks() *Masks {
-	var m Masks
-	if err := viper.Unmarshal(&m); err != nil {
-		m = Masks{
-			MaskChar: DefaultMaskChar,
-			Values:   make([]string, 0),
-		}
-		m.Save()
+func New() *Masks {
+	return &Masks{
+		MaskChar: DefaultMask,
+		Values:   make([]string, 0),
 	}
+}
+
+func LoadMasks(filepath string) *Masks {
+	var m Masks
+	buf, err := os.ReadFile(filepath)
+	if err != nil {
+		return New()
+	}
+
+	err = yaml.Unmarshal(buf, &m)
+	if err != nil {
+		return New()
+	}
+
 	return &m
 }
 
-func (m *Masks) Save() {
-	home, err := os.UserHomeDir()
+func (m *Masks) Save(filepath string) {
+	content, _ := yaml.Marshal(m)
+
+	f, err := os.OpenFile(filepath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
-		fmt.Println("Err: Could not locate home directory.")
-		os.Exit(1)
-	}
-	content, err := yaml.Marshal(m)
-	if err != nil {
-		fmt.Println("Err: Could not store configuration.")
-		os.Exit(1)
-	}
-	f, err := os.OpenFile(path.Join(home, ".mask"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
-	if err != nil {
-		fmt.Print("Err: Could not access file `.mask` in home directory")
+		fmt.Print("Err: Could not access configuration file")
 		os.Exit(1)
 	}
 	defer f.Close()
 
 	_, err = f.Write(content)
 	if err != nil {
-		fmt.Print("Err: Could not store configuration in `.mask` file")
+		fmt.Print("Err: Could not store configuration file")
 		os.Exit(1)
 	}
 }
@@ -79,4 +80,17 @@ func (r *Masks) Remove(v string) bool {
 		}
 	}
 	return false
+}
+
+func (r *Masks) Compile() []*regexp.Regexp {
+	var compiled []*regexp.Regexp
+	for _, mask := range r.Values {
+		re, err := regexp.Compile(fmt.Sprintf(`(?i)%s`, mask))
+		if err != nil {
+			fmt.Print("Err: invalid regex for mask", mask)
+			continue
+		}
+		compiled = append(compiled, re)
+	}
+	return compiled
 }

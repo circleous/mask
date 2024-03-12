@@ -13,7 +13,7 @@ var getCmd = &cobra.Command{
 	Short:   "Prints the current char used for masking",
 	Aliases: []string{"show"},
 	Run: func(cmd *cobra.Command, args []string) {
-		m := mask.LoadMasks()
+		m := mask.LoadMasks(cfgFile)
 		fmt.Printf("Current mask chart is %s\n", m.MaskChar)
 	},
 }

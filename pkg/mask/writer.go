@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"io"
 	"regexp"
-	"strings"
 )
 
 type MaskedWriter struct {
-	replacements *Masks
+	mask         string
+	replacements []*regexp.Regexp
 	source       io.Reader
 	target       io.Writer
 }
@@ -18,22 +18,24 @@ func (w *MaskedWriter) Write() {
 	scanner := bufio.NewScanner(w.source)
 
 	for scanner.Scan() {
-		fmt.Fprintln(w.target, maskLine(scanner.Text(), w.replacements))
+		fmt.Fprintln(w.target, maskLine(scanner.Text(), w.mask, w.replacements))
 	}
 }
 
 func NewMaskedWriter(r *Masks, s io.Reader, t io.Writer) *MaskedWriter {
+	replacements := r.Compile()
+
 	return &MaskedWriter{
-		replacements: r,
+		mask:         r.MaskChar,
+		replacements: replacements,
 		source:       s,
 		target:       t,
 	}
 }
 
-func maskLine(v string, r *Masks) string {
-	for _, mask := range r.Values {
-		ex := regexp.MustCompile(fmt.Sprintf(`(?i)%s`, mask))
-		v = ex.ReplaceAllString(v, strings.Repeat(r.MaskChar, len(mask)))
+func maskLine(line, replace string, re []*regexp.Regexp) string {
+	for _, mask := range re {
+		line = mask.ReplaceAllString(line, replace)
 	}
-	return v
+	return line
 }
